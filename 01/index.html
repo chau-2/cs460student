@@ -11,19 +11,23 @@
         overflow: hidden;
       }
     </style>
-    <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+    <!-- Include the XTK Library -->
+    <script type="text/javascript" src="https://goxtk.com"></script>
+  </head>
+  <body>
     <script type="text/javascript">
       window.onload = function() {
+        // Create and initialize the 3D renderer inside the body
         var r = new X.renderer3D();
         r.init();
 
+        // Create a basic 3D cube mesh object
         var cube = new X.cube();
+        
+        // Add the cube to the scene and render it
         r.add(cube);
-
         r.render();
       };
     </script>
-  </head>
-  <body>
   </body>
 </html>

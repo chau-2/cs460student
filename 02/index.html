@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS460 - 3D Jello Cube in a 3D Meadow (XTK)</title>
+  <style>
+    :root {
+      --ui-bg: rgba(255, 255, 255, 0.88);
+      --ui-border: rgba(255, 255, 255, 0.95);
+      --ui-shadow: rgba(46, 125, 50, 0.18);
+      --text-main: #1b4332;
+      --text-muted: #406a59;
+      --accent: #ff5252;
+      --accent-hover: #ff3838;
+      --accent-green: #2ecc71;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: #60b6f2; /* Sky blue fallback */
+    }
+
+    /* Fullscreen XTK 3D Container */
+    #container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 1;
+      background: #60b6f2;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* 2D Sparkle Canvas Overlay */
+    #sparkle-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Floating Cottagecore Control HUD */
+    .hud-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 320px;
+      max-width: calc(100vw - 40px);
+      background: var(--ui-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 2px solid var(--ui-border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 16px 36px -4px var(--ui-shadow), 0 4px 16px rgba(0, 0, 0, 0.05);
+      z-index: 10;
+      transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .hud-panel.collapsed {
+      transform: translateX(calc(-100% - 30px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .hud-title {
+      font-size: 1.22rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-subtitle {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .btn-icon-close {
+      background: rgba(0, 0, 0, 0.05);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-main);
+      font-weight: bold;
+      font-size: 0.95rem;
+      transition: background 0.2s;
+    }
+    .btn-icon-close:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Open HUD Button */
+    .btn-open-hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 9;
+      background: var(--ui-bg);
+      border: 2px solid var(--ui-border);
+      color: var(--text-main);
+      padding: 10px 18px;
+      border-radius: 50px;
+      backdrop-filter: blur(12px);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 8px 24px var(--ui-shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-open-hud:hover {
+      transform: scale(1.05);
+      background: #ffffff;
+    }
+
+    /* Main Action: Jump for Joy! */
+    .btn-jump-action {
+      width: 100%;
+      background: linear-gradient(135deg, #ff5252 0%, #ff793f 100%);
+      color: white;
+      border: none;
+      border-radius: 18px;
+      padding: 13px 18px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(255, 82, 82, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      margin-bottom: 10px;
+    }
+    .btn-jump-action:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 26px rgba(255, 82, 82, 0.5);
+    }
+    .btn-jump-action:active {
+      transform: translateY(2px) scale(0.98);
+    }
+
+    /* Sub-Action: Poke Jello! */
+    .btn-poke-action {
+      width: 100%;
+      background: linear-gradient(135deg, #2ecc71 0%, #1abc9c 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(46, 204, 113, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+      margin-bottom: 14px;
+    }
+    .btn-poke-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(46, 204, 113, 0.4);
+    }
+
+    /* Section Subheadings */
+    .hud-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* Flavor / Color Pills */
+    .flavors-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+    .flavor-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 8px 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .flavor-btn .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .flavor-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+    }
+    .flavor-btn.active {
+      background: #ffffff;
+      border-color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Sliders */
+    .slider-row {
+      margin-bottom: 11px;
+    }
+    .slider-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 3px;
+    }
+    .slider-val {
+      color: var(--accent);
+      font-weight: 800;
+    }
+    .custom-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.08);
+      outline: none;
+    }
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(255, 82, 82, 0.5);
+      transition: transform 0.1s ease;
+    }
+    .custom-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Toggles (Sound & Auto-Jump & Camera Reset) */
+    .toggles-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .toggle-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 9px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .toggle-btn.active {
+      background: #ffffff;
+      border-color: #2ecc71;
+      color: #27ae60;
+      box-shadow: 0 3px 10px rgba(46, 204, 113, 0.2);
+    }
+
+    /* Reset View Button */
+    .btn-reset-view {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+    .btn-reset-view:hover {
+      background: #ffffff;
+      color: var(--text-main);
+    }
+
+    /* Live Status Badge (Top Right) */
+    .status-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--ui-bg);
+      border: 2px solid var(--ui-border);
+      border-radius: 50px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-main);
+      box-shadow: 0 6px 18px var(--ui-shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 9;
+      pointer-events: none;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #2ecc71;
+      animation: pulseDot 1.5s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+
+    /* Keyboard Hints Banner (Bottom Center) */
+    .keyboard-guide {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ui-bg);
+      border: 2px solid var(--ui-border);
+      border-radius: 50px;
+      padding: 8px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      box-shadow: 0 8px 25px var(--ui-shadow);
+      z-index: 8;
+      pointer-events: none;
+      opacity: 0.92;
+    }
+    .key-tag {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .key-tag kbd {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    /* Floating Toast Bubble */
+    .toast-bubble {
+      position: absolute;
+      top: 85px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #ffffff;
+      border: 2px solid var(--accent);
+      color: var(--text-main);
+      font-weight: 800;
+      font-size: 0.92rem;
+      padding: 10px 22px;
+      border-radius: 50px;
+      box-shadow: 0 10px 25px rgba(255, 82, 82, 0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+    }
+    .toast-bubble.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+      .status-badge, .keyboard-guide { display: none; }
+    }
+  </style>
+
+  <!-- Load official XTK (The X Toolkit) WebGL Framework -->
+  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+</head>
+<body>
+
+  <!-- Fullscreen 3D Scene Viewport Container -->
+  <div id="container"></div>
+
+  <!-- 2D Canvas Particle Overlay for Glittering Stars -->
+  <canvas id="sparkle-canvas"></canvas>
+
+  <!-- Open HUD Button -->
+  <button id="btnOpenHud" class="btn-open-hud" style="display: none;">
+    <span>⚙️</span> Meadow Controls
+  </button>
+
+  <!-- Status Badge (Top Right) -->
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    <span id="txtJelloStatus">3D Meadow & Jello Active</span>
+  </div>
+
+  <!-- Floating Cottagecore Control HUD -->
+  <div id="hudPanel" class="hud-panel">
+    <div class="hud-header">
+      <div>
+        <div class="hud-title">
+          <span>🍮</span> 3D Jello Cube Meadow
+        </div>
+        <div class="hud-subtitle">CS460 WebGL Graphics • 3D World & Physics</div>
+      </div>
+      <button id="btnCloseHud" class="btn-icon-close" title="Hide Controls (H)">✕</button>
+    </div>
+
+    <!-- Joyful Actions -->
+    <button id="btnJump" class="btn-jump-action" title="Press Spacebar or Click Screen">
+      <span>🦘</span> Jump for Joy!
+    </button>
+    <button id="btnPoke" class="btn-poke-action" title="Give Jello a gentle poke!">
+      <span>👉</span> Poke & Wobble Jello
+    </button>
+
+    <!-- Jello Flavors / Translucent Gelatin Selection -->
+    <div class="hud-label">Jello Gelatin Flavor</div>
+    <div class="flavors-grid">
+      <button class="flavor-btn active" data-flavor="cherry">
+        <div class="dot" style="background: #ff3366;"></div>
+        <span>Cherry</span>
+      </button>
+      <button class="flavor-btn" data-flavor="lime">
+        <div class="dot" style="background: #2ecc71;"></div>
+        <span>Lime</span>
+      </button>
+      <button class="flavor-btn" data-flavor="berry">
+        <div class="dot" style="background: #00a8ff;"></div>
+        <span>Berry</span>
+      </button>
+      <button class="flavor-btn" data-flavor="orange">
+        <div class="dot" style="background: #f39c12;"></div>
+        <span>Orange</span>
+      </button>
+      <button class="flavor-btn" data-flavor="mango">
+        <div class="dot" style="background: #f1c40f;"></div>
+        <span>Mango</span>
+      </button>
+      <button class="flavor-btn" data-flavor="grape">
+        <div class="dot" style="background: #9b59b6;"></div>
+        <span>Grape</span>
+      </button>
+    </div>
+
+    <!-- Physics & Elasticity Sliders -->
+    <div class="hud-label">Elasticity & Physics</div>
+    <div class="slider-row">
+      <div class="slider-info">
+        <span>Jello Wobbliness</span>
+        <span id="lblWobble" class="slider-val">1.2x</span>
+      </div>
+      <input type="range" id="rngWobble" class="custom-slider" min="0.4" max="2.4" step="0.1" value="1.2">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-info">
+        <span>Squash & Stretch</span>
+        <span id="lblSquash" class="slider-val">1.3x</span>
+      </div>
+      <input type="range" id="rngSquash" class="custom-slider" min="0.5" max="2.2" step="0.1" value="1.3">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-info">
+        <span>Jump Force</span>
+        <span id="lblJumpHeight" class="slider-val">115 px</span>
+      </div>
+      <input type="range" id="rngJumpHeight" class="custom-slider" min="60" max="180" step="10" value="115">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-info">
+        <span>Jello Transparency</span>
+        <span id="lblOpacity" class="slider-val">78%</span>
+      </div>
+      <input type="range" id="rngOpacity" class="custom-slider" min="0.35" max="0.95" step="0.05" value="0.78">
+    </div>
+
+    <!-- Toggles (Audio Bird Songs & Auto-Jump) -->
+    <div class="toggles-row">
+      <button id="btnBirds" class="toggle-btn active">
+        <span>🐦</span> Birds: ON
+      </button>
+      <button id="btnAutoJump" class="toggle-btn">
+        <span>🔁</span> Auto-Jump: OFF
+      </button>
+    </div>
+
+    <!-- Reset View Button -->
+    <button id="btnResetCamera" class="btn-reset-view">
+      <span>📷</span> Reset 3D Front View
+    </button>
+  </div>
+
+  <!-- Keyboard Shortcuts Guide -->
+  <div class="keyboard-guide">
+    <div class="key-tag"><kbd>Space</kbd> Jump for Joy</div>
+    <div class="key-tag"><kbd>P</kbd> Poke Jello</div>
+    <div class="key-tag"><kbd>C</kbd> Flavor</div>
+    <div class="key-tag"><kbd>B</kbd> Bird Tweet</div>
+    <div class="key-tag"><kbd>R</kbd> Front View</div>
+    <div class="key-tag"><kbd>H</kbd> Hide Controls</div>
+    <div class="key-tag"><kbd>Drag</kbd> 3D Camera</div>
+  </div>
+
+  <!-- Floating Toast Notification -->
+  <div id="toast" class="toast-bubble">✨ JUMP FOR JOY! ✨</div>
+
+  <!-- Core 3D Meadow & Jello Script -->
+  <script type="text/javascript">
+    // ============================================================
+    // CONFIGURATION & STATE
+    // ============================================================
+    const JelloConfig = {
+      baseSize: 48,           // Base cube edge size
+      groundY: -32,           // Ground resting elevation in 3D world units
+      wobbleDamping: 4.2,     // Decay rate of jiggle oscillations
+      wobbleFreq: 18.0,       // Frequency of Jello spring wobble
+      squashFactor: 1.3,      // Stretch/Flatten scale multiplier
+      jumpPeakHeight: 115,    // Jump apex height
+      jumpDuration: 0.95,     // Total jump airborne seconds
+      flavor: 'cherry',
+      transparency: 0.78,     // Translucent gelatin opacity
+      birdTweetsEnabled: true,
+      autoJump: false
+    };
+
+    const Flavors = {
+      cherry: { rgb: [1.0, 0.16, 0.38], core: [1.0, 0.45, 0.62], name: 'Cherry Ruby' },
+      lime:   { rgb: [0.18, 0.85, 0.32], core: [0.45, 0.98, 0.55], name: 'Lime Zest' },
+      berry:  { rgb: [0.08, 0.65, 0.98], core: [0.45, 0.85, 1.00], name: 'Berry Blue' },
+      orange: { rgb: [1.0, 0.52, 0.12], core: [1.0, 0.75, 0.38], name: 'Tangerine' },
+      mango:  { rgb: [1.0, 0.82, 0.12], core: [1.0, 0.92, 0.45], name: 'Mango Gold' },
+      grape:  { rgb: [0.65, 0.25, 0.92], core: [0.82, 0.52, 1.00], name: 'Grape Velvet' }
+    };
+
+    // Jello Elasticity & Jump Physics State
+    const Physics = {
+      isJumping: false,
+      jumpStartTime: 0,
+      currentY: JelloConfig.groundY,
+
+      // Deformation scales: sx, sy, sz
+      scaleX: 1.0,
+      scaleY: 1.0,
+      scaleZ: 1.0,
+
+      // Damped harmonic oscillation wobble state
+      wobbleAmplitude: 0.0,
+      wobbleStartTime: 0,
+
+      // Facial happiness mood ('normal', 'joy', 'wobble')
+      faceMood: 'normal'
+    };
+
+    // XTK Engine & Scene Elements
+    let renderer = null;
+
+    // Jello Objects
+    let jelloCube = null;       // Main translucent gelatin cube
+    let innerCore = null;       // Internal translucent core for caustic depth
+
+    // 3D Geometric Face Objects (Attached directly to 3D cube)
+    const Face3D = {
+      eyeL: null,
+      eyeR: null,
+      pupilL: null,
+      pupilR: null,
+      blushL: null,
+      blushR: null,
+      eyebrowL: null,
+      eyebrowR: null,
+      mouthCavity: null,
+      mouthTongue: null,
+      mouthCornerL: null,
+      mouthCornerR: null
+    };
+
+    // 3D Meadow Environment Objects
+    let sunSphere = null;
+    let sunRays = [];
+    let cloudClusters = [];
+    let rollingHills = [];
+    let meadowPlatform = null;
+    let grassTufts = [];
+    let meadowFlowers = [];
+
+    // 3D Burst Sparkles
+    let burstCubes3D = [];
+
+    // 2D Sparkles Particle Canvas
+    const sparkles = [];
+    const sparkleCanvas = document.getElementById('sparkle-canvas');
+    const sparkleCtx = sparkleCanvas.getContext('2d');
+
+    function resizeSparkleCanvas() {
+      sparkleCanvas.width = window.innerWidth;
+      sparkleCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeSparkleCanvas);
+    resizeSparkleCanvas();
+
+    // ============================================================
+    // PROCEDURAL BIRD TWEET & JELLO AUDIO SYNTHESIZER
+    // ============================================================
+    const MeadowAudio = {
+      ctx: null,
+      masterGain: null,
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
+      },
+
+      ensureReady() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      // Procedural Bird Tweet Synthesis
+      playBirdChirp(type = 'joyful') {
+        if (!JelloConfig.birdTweetsEnabled) return;
+        this.ensureReady();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const chirpCount = (type === 'joyful') ? 3 : 2;
+        const baseFreq = 2800 + Math.random() * 800;
+
+        for (let i = 0; i < chirpCount; i++) {
+          const chirpStart = now + i * 0.11;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sine';
+
+          const f0 = baseFreq + (i * 350) + (Math.random() * 200);
+          const f1 = f0 + 1200 + Math.random() * 400;
+          const f2 = f0 - 300;
+
+          osc.frequency.setValueAtTime(f0, chirpStart);
+          osc.frequency.exponentialRampToValueAtTime(f1, chirpStart + 0.04);
+          osc.frequency.exponentialRampToValueAtTime(f2, chirpStart + 0.08);
+
+          gain.gain.setValueAtTime(0.0001, chirpStart);
+          gain.gain.linearRampToValueAtTime(0.18, chirpStart + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, chirpStart + 0.085);
+
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+
+          osc.start(chirpStart);
+          osc.stop(chirpStart + 0.09);
+        }
+      },
+
+      // Squishy Cartoon Jello Bounce Sound
+      playJelloBounce(pitchMod = 1.0) {
+        if (!JelloConfig.birdTweetsEnabled) return;
+        this.ensureReady();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        const startFreq = 220 * pitchMod;
+        const endFreq = 95 * pitchMod;
+
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.18);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+    };
+
+    // Periodic Background Bird Tweet Song
+    function scheduleMeadowBirds() {
+      const delay = 3500 + Math.random() * 3500;
+      setTimeout(() => {
+        if (JelloConfig.birdTweetsEnabled && !Physics.isJumping) {
+          MeadowAudio.playBirdChirp('ambient');
+        }
+        scheduleMeadowBirds();
+      }, delay);
+    }
+    scheduleMeadowBirds();
+
+    // ============================================================
+    // SPARKLE PARTICLE ENGINE
+    // ============================================================
+    function emitJoyfulSparkles(screenX, screenY, count = 35) {
+      const colors = ['#ffe066', '#ffd166', '#ffffff', '#ff9ebb', '#70e000', '#38bdf8', '#c084fc'];
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2.5 + Math.random() * 7.0;
+        sparkles.push({
+          x: screenX + (Math.random() - 0.5) * 40,
+          y: screenY + (Math.random() - 0.5) * 40,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2.5,
+          size: 6 + Math.random() * 8,
+          rotation: Math.random() * Math.PI,
+          rotSpeed: (Math.random() - 0.5) * 0.25,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: 1.0,
+          life: 0.85 + Math.random() * 0.5,
+          maxLife: 1.0,
+          isStar: Math.random() > 0.4
+        });
+      }
+
+      // Also trigger 3D burst cubes in the XTK scene
+      trigger3DSparkleBurst();
+    }
+
+    function trigger3DSparkleBurst() {
+      burstCubes3D.forEach(b => {
+        b.active = true;
+        b.startTime = performance.now();
+        b.origin = [0, Physics.currentY + 25, 10];
+        const theta = Math.random() * Math.PI * 2;
+        const phi = (Math.random() - 0.3) * Math.PI * 0.8;
+        const spd = 35 + Math.random() * 55;
+        b.vel = [Math.cos(theta) * Math.cos(phi) * spd, Math.sin(phi) * spd, Math.sin(theta) * Math.cos(phi) * spd];
+      });
+    }
+
+    function renderSparkles(dt) {
+      sparkleCtx.clearRect(0, 0, sparkleCanvas.width, sparkleCanvas.height);
+
+      for (let i = sparkles.length - 1; i >= 0; i--) {
+        const p = sparkles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+          sparkles.splice(i, 1);
+          continue;
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 2.2 * dt;
+        p.rotation += p.rotSpeed;
+        const fade = p.life / p.maxLife;
+
+        sparkleCtx.save();
+        sparkleCtx.translate(p.x, p.y);
+        sparkleCtx.rotate(p.rotation);
+        sparkleCtx.globalAlpha = Math.max(0, fade);
+        sparkleCtx.fillStyle = p.color;
+
+        if (p.isStar) {
+          const s = p.size * fade;
+          sparkleCtx.beginPath();
+          sparkleCtx.moveTo(0, -s);
+          sparkleCtx.quadraticCurveTo(0, 0, s, 0);
+          sparkleCtx.quadraticCurveTo(0, 0, 0, s);
+          sparkleCtx.quadraticCurveTo(0, 0, -s, 0);
+          sparkleCtx.quadraticCurveTo(0, 0, 0, -s);
+          sparkleCtx.fill();
+        } else {
+          const r = (p.size / 2) * fade;
+          sparkleCtx.beginPath();
+          sparkleCtx.arc(0, 0, r, 0, Math.PI * 2);
+          sparkleCtx.fill();
+        }
+
+        sparkleCtx.restore();
+      }
+    }
+
+    // ============================================================
+    // JELLO WOBBLE & SQUASH-AND-STRETCH PHYSICS ENGINE
+    // ============================================================
+    function triggerJump() {
+      if (Physics.isJumping) return;
+
+      Physics.isJumping = true;
+      Physics.jumpStartTime = performance.now();
+      Physics.faceMood = 'joy';
+      showToast('✨ JUMP FOR JOY! ✨');
+
+      MeadowAudio.playBirdChirp('joyful');
+      document.getElementById('txtJelloStatus').innerText = 'Jello Status: Flying High in 3D!';
+    }
+
+    function triggerPoke() {
+      Physics.wobbleAmplitude = 0.55 * JelloConfig.squashFactor;
+      Physics.wobbleStartTime = performance.now();
+      Physics.faceMood = 'wobble';
+      MeadowAudio.playJelloBounce(1.3);
+      showToast('👉 Jiggle Jiggle!');
+
+      emitJoyfulSparkles(window.innerWidth / 2, window.innerHeight * 0.45, 18);
+
+      setTimeout(() => {
+        if (!Physics.isJumping) Physics.faceMood = 'normal';
+      }, 700);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1600);
+    }
+
+    // Reset Camera to Front View
+    function resetCameraFront() {
+      if (!renderer) return;
+      renderer.camera.position = [0, 15, 200];
+      renderer.camera.focus = [0, 5, 0];
+      renderer.camera.up = [0, 1, 0];
+      showToast('📷 Snapped to 3D Front View');
+    }
+
+    function updateJelloPhysics(now) {
+      const base = JelloConfig.baseSize;
+      const ground = JelloConfig.groundY;
+      const squashMul = JelloConfig.squashFactor;
+
+      let currentElevation = ground;
+      let sx = 1.0;
+      let sy = 1.0;
+      let sz = 1.0;
+
+      // -------------------------------------------------------------
+      // 1. JUMP FOR JOY (Trajectory, Squash on launch/landing, Stretch in flight)
+      // -------------------------------------------------------------
+      if (Physics.isJumping) {
+        const elapsed = (now - Physics.jumpStartTime) / 1000;
+        const duration = JelloConfig.jumpDuration;
+        const progress = elapsed / duration;
+
+        if (progress < 1.0) {
+          // Anticipation Crouch (0% to 15%): FLATTEN down before jumping!
+          if (progress < 0.15) {
+            const p = progress / 0.15;
+            const squashDepth = 0.45 * squashMul;
+            sy = 1.0 - Math.sin(p * Math.PI) * squashDepth;
+            sx = sz = 1.0 / Math.sqrt(Math.max(0.2, sy));
+            currentElevation = ground - (1.0 - sy) * (base * 0.45);
+          }
+          // Launch & Ascend (15% to 50%): STRETCH vertically upward!
+          else if (progress < 0.50) {
+            const p = (progress - 0.15) / 0.35;
+            const heightT = Math.sin(p * Math.PI * 0.5);
+            currentElevation = ground + heightT * JelloConfig.jumpPeakHeight;
+
+            const stretchStrength = 0.55 * squashMul;
+            sy = 1.0 + Math.sin(p * Math.PI * 0.8) * stretchStrength;
+            sx = sz = 1.0 / Math.sqrt(Math.max(0.3, sy));
+
+            // Apex Sparkle Explosion
+            if (progress >= 0.45 && !Physics._apexSparklesDone) {
+              Physics._apexSparklesDone = true;
+              emitJoyfulSparkles(window.innerWidth / 2, window.innerHeight * 0.32, 45);
+              MeadowAudio.playBirdChirp('joyful');
+            }
+          }
+          // Apex to Descend (50% to 90%)
+          else if (progress < 0.90) {
+            const p = (progress - 0.50) / 0.40;
+            const fallT = Math.cos(p * Math.PI * 0.5);
+            currentElevation = ground + fallT * JelloConfig.jumpPeakHeight;
+
+            sy = 1.0 + (1 - p) * 0.25 * squashMul;
+            sx = sz = 1.0 / Math.sqrt(Math.max(0.3, sy));
+          }
+          // Impact & Landing Touchdown (90% to 100%): FLATTEN on ground
+          else {
+            const p = (progress - 0.90) / 0.10;
+            currentElevation = ground;
+            const landingSquash = 0.52 * squashMul;
+            sy = 1.0 - Math.sin(p * Math.PI) * landingSquash;
+            sx = sz = 1.0 / Math.sqrt(Math.max(0.2, sy));
+          }
+        } else {
+          // Landing Complete: Trigger post-jump JELLO WOBBLE!
+          Physics.isJumping = false;
+          Physics._apexSparklesDone = false;
+          Physics.faceMood = 'normal';
+          currentElevation = ground;
+
+          Physics.wobbleAmplitude = 0.65 * squashMul;
+          Physics.wobbleStartTime = now;
+
+          MeadowAudio.playJelloBounce(0.95);
+          document.getElementById('txtJelloStatus').innerText = 'Jello Status: 3D Meadow & Jello Active';
+
+          emitJoyfulSparkles(window.innerWidth / 2, window.innerHeight * 0.62, 22);
+
+          if (JelloConfig.autoJump) {
+            setTimeout(triggerJump, 1200);
+          }
+        }
+      }
+
+      // -------------------------------------------------------------
+      // 2. WOBBLE JUST LIKE JELLO (Damped harmonic spring oscillation)
+      // -------------------------------------------------------------
+      if (Physics.wobbleAmplitude > 0.005) {
+        const t = (now - Physics.wobbleStartTime) / 1000;
+        const damping = Math.exp(-t * (JelloConfig.wobbleDamping / JelloConfig.squashFactor));
+        const freq = JelloConfig.wobbleFreq;
+
+        const wobbleOffset = Math.sin(t * freq) * damping * Physics.wobbleAmplitude;
+
+        sy += wobbleOffset;
+        sx -= wobbleOffset * 0.65;
+        sz -= wobbleOffset * 0.65;
+
+        const deltaHeight = (sy - 1.0) * (base * 0.5);
+        currentElevation += deltaHeight;
+
+        if (damping < 0.015) {
+          Physics.wobbleAmplitude = 0;
+        }
+      } else if (!Physics.isJumping) {
+        // Idle gentle breathing jello jiggle
+        const idleT = now * 0.0035;
+        const idleWobble = Math.sin(idleT) * 0.035;
+        sy = 1.0 + idleWobble;
+        sx = sz = 1.0 - idleWobble * 0.5;
+        currentElevation = ground + (sy - 1.0) * (base * 0.5);
+      }
+
+      Physics.currentY = currentElevation;
+
+      // -------------------------------------------------------------
+      // 3. APPLY DEFORMATION TO XTK 3D JELLO CUBE (TRANSLUCENT GELATIN)
+      // -------------------------------------------------------------
+      if (jelloCube) {
+        jelloCube.lengthX = base * sx;
+        jelloCube.lengthY = base * sy;
+        jelloCube.lengthZ = base * sz;
+        jelloCube.center = [0, currentElevation + (base * sy * 0.5), 0];
+        jelloCube.opacity = JelloConfig.transparency;
+        jelloCube.modified();
+
+        if (innerCore) {
+          innerCore.lengthX = base * sx * 0.68;
+          innerCore.lengthY = base * sy * 0.68;
+          innerCore.lengthZ = base * sz * 0.68;
+          innerCore.center = [0, currentElevation + (base * sy * 0.5), 0];
+          innerCore.opacity = JelloConfig.transparency * 0.65;
+          innerCore.modified();
+        }
+      }
+
+      // -------------------------------------------------------------
+      // 4. UPDATE 3D GEOMETRIC FACE PARTS ON THE CUBE'S FRONT SURFACE
+      // -------------------------------------------------------------
+      if (Face3D.eyeL) {
+        const cubeMidY = currentElevation + (base * sy * 0.5);
+        const hx = (base * sx) * 0.5;
+        const hy = (base * sy) * 0.5;
+        const hz = (base * sz) * 0.5;
+
+        const frontZ = hz + 0.8; // Located right on the front surface of the 3D cube
+        const eyeSepX = hx * 0.44;
+        const eyeElevY = cubeMidY + (hy * 0.22);
+        const blushSepX = hx * 0.68;
+        const blushElevY = cubeMidY - (hy * 0.12);
+        const mouthElevY = cubeMidY - (hy * 0.26);
+        const browElevY = cubeMidY + (hy * 0.52) + (Physics.faceMood === 'joy' ? 3.5 : 0);
+
+        // 3D Left & Right Eyes (Spheres)
+        const eyeRadius = 3.6 * Math.sqrt(sx);
+        Face3D.eyeL.radius = eyeRadius;
+        Face3D.eyeL.center = [-eyeSepX, eyeElevY, frontZ];
+        Face3D.eyeL.modified();
+
+        Face3D.eyeR.radius = eyeRadius;
+        Face3D.eyeR.center = [eyeSepX, eyeElevY, frontZ];
+        Face3D.eyeR.modified();
+
+        // 3D Eye Highlights / Sparkle Shines (White Spheres)
+        const shineRadius = 1.35 * Math.sqrt(sx);
+        const shineOffset = eyeRadius * 0.38;
+        Face3D.pupilL.radius = shineRadius;
+        Face3D.pupilL.center = [-eyeSepX + shineOffset, eyeElevY + shineOffset, frontZ + 1.8];
+        Face3D.pupilL.modified();
+
+        Face3D.pupilR.radius = shineRadius;
+        Face3D.pupilR.center = [eyeSepX + shineOffset, eyeElevY + shineOffset, frontZ + 1.8];
+        Face3D.pupilR.modified();
+
+        // 3D Rosy Cheeks Blush (Spheres)
+        const blushRadius = 3.4 * Math.sqrt(sx);
+        Face3D.blushL.radius = blushRadius;
+        Face3D.blushL.center = [-blushSepX, blushElevY, frontZ + 0.5];
+        Face3D.blushL.modified();
+
+        Face3D.blushR.radius = blushRadius;
+        Face3D.blushR.center = [blushSepX, blushElevY, frontZ + 0.5];
+        Face3D.blushR.modified();
+
+        // 3D Eyebrows (Cubes)
+        Face3D.eyebrowL.lengthX = 7.5 * sx;
+        Face3D.eyebrowL.lengthY = 1.6 * sy;
+        Face3D.eyebrowL.lengthZ = 1.5;
+        Face3D.eyebrowL.center = [-eyeSepX, browElevY, frontZ + 0.6];
+        Face3D.eyebrowL.modified();
+
+        Face3D.eyebrowR.lengthX = 7.5 * sx;
+        Face3D.eyebrowR.lengthY = 1.6 * sy;
+        Face3D.eyebrowR.lengthZ = 1.5;
+        Face3D.eyebrowR.center = [eyeSepX, browElevY, frontZ + 0.6];
+        Face3D.eyebrowR.modified();
+
+        // 3D Cute Mouth (Open Joyful Smile with 3D Tongue)
+        const isJoy = (Physics.faceMood === 'joy');
+        const mouthW = (isJoy ? 12.0 : 8.5) * sx;
+        const mouthH = (isJoy ? 7.5 : 4.0) * sy;
+
+        Face3D.mouthCavity.lengthX = mouthW;
+        Face3D.mouthCavity.lengthY = mouthH;
+        Face3D.mouthCavity.lengthZ = 1.6;
+        Face3D.mouthCavity.center = [0, mouthElevY, frontZ + 0.6];
+        Face3D.mouthCavity.modified();
+
+        // 3D Pink Tongue
+        const tongueRadius = 2.4 * Math.sqrt(sx);
+        Face3D.mouthTongue.radius = tongueRadius;
+        Face3D.mouthTongue.center = [0, mouthElevY - (mouthH * 0.28), frontZ + 1.2];
+        Face3D.mouthTongue.modified();
+
+        // 3D Smile Lip Corners
+        const cornerSepX = mouthW * 0.52;
+        Face3D.mouthCornerL.lengthX = 2.0;
+        Face3D.mouthCornerL.lengthY = 2.0;
+        Face3D.mouthCornerL.lengthZ = 1.5;
+        Face3D.mouthCornerL.center = [-cornerSepX, mouthElevY + 1.2, frontZ + 0.6];
+        Face3D.mouthCornerL.modified();
+
+        Face3D.mouthCornerR.lengthX = 2.0;
+        Face3D.mouthCornerR.lengthY = 2.0;
+        Face3D.mouthCornerR.lengthZ = 1.5;
+        Face3D.mouthCornerR.center = [cornerSepX, mouthElevY + 1.2, frontZ + 0.6];
+        Face3D.mouthCornerR.modified();
+      }
+
+      // -------------------------------------------------------------
+      // 5. ANIMATE 3D MEADOW ENVIRONMENT (Sunbeams, Clouds, Grass Breeze)
+      // -------------------------------------------------------------
+      // Rotate 3D Sunbeams
+      sunRays.forEach((ray, i) => {
+        const rayAngle = (now * 0.001) + (i / sunRays.length) * Math.PI * 2;
+        const sunDist = 34 + Math.sin(now * 0.003 + i) * 3;
+        ray.center = [
+          85 + Math.cos(rayAngle) * sunDist,
+          95 + Math.sin(rayAngle) * sunDist,
+          -120
+        ];
+        ray.modified();
+      });
+
+      // Drift 3D Clouds slowly across the sky
+      cloudClusters.forEach(c => {
+        c.x += c.speed;
+        if (c.x > 240) c.x = -240;
+        c.spheres.forEach(s => {
+          s.center = [c.x + s.offset[0], s.baseY + s.offset[1], s.baseZ + s.offset[2]];
+          s.modified();
+        });
+      });
+
+      // Gentle breeze swaying 3D grass tufts & flowers
+      grassTufts.forEach((g, idx) => {
+        const sway = Math.sin(now * 0.002 + idx * 0.4) * 1.5;
+        g.center = [g.baseX + sway, g.baseY, g.baseZ];
+        g.modified();
+      });
+
+      meadowFlowers.forEach((f, idx) => {
+        const sway = Math.sin(now * 0.002 + idx * 0.5) * 1.8;
+        f.center = [f.baseX + sway, f.baseY, f.baseZ];
+        f.modified();
+      });
+
+      // Animate 3D Burst Sparkles
+      burstCubes3D.forEach(b => {
+        if (!b.active) return;
+        const elapsed = (now - b.startTime) / 1000;
+        if (elapsed > 1.2) {
+          b.active = false;
+          b.mesh.center = [0, -999, 0];
+          b.mesh.modified();
+          return;
+        }
+        const px = b.origin[0] + b.vel[0] * elapsed;
+        const py = b.origin[1] + b.vel[1] * elapsed - (45 * elapsed * elapsed);
+        const pz = b.origin[2] + b.vel[2] * elapsed;
+        b.mesh.center = [px, py, pz];
+        b.mesh.modified();
+      });
+    }
+
+    // ============================================================
+    // XTK INITIALIZATION & FULL 3D MEADOW WORLD
+    // ============================================================
+    window.onload = function() {
+      // 1. Initialize XTK 3D Renderer attached to the full-window container
+      renderer = new X.renderer3D();
+      renderer.container = 'container';
+      renderer.init();
+
+      // Cheerful sunny sky blue WebGL background
+      renderer.bgColor = [0.38, 0.72, 0.95];
+
+      // -------------------------------------------------------------
+      // 2. CREATE FULL 3D MEADOW ENVIRONMENT
+      // -------------------------------------------------------------
+
+      // A. 3D Glowing Golden Sun in the Sky
+      sunSphere = new X.sphere();
+      sunSphere.center = [85, 95, -120];
+      sunSphere.radius = 22;
+      sunSphere.color = [1.0, 0.88, 0.18];
+      sunSphere.opacity = 1.0;
+      renderer.add(sunSphere);
+
+      // 8 Radiant 3D Sunbeams Orbiting the Sun
+      for (let i = 0; i < 8; i++) {
+        const ray = new X.cube();
+        ray.lengthX = ray.lengthY = ray.lengthZ = 6;
+        ray.color = [1.0, 0.95, 0.4];
+        ray.opacity = 0.9;
+        renderer.add(ray);
+        sunRays.push(ray);
+      }
+
+      // B. 3D Soft Fluffy Clouds in the Sky
+      const cloudDefs = [
+        { x: -110, y: 85, z: -100, speed: 0.12, parts: [[-10, 0, 0, 14], [0, 5, 0, 18], [12, -2, 0, 13]] },
+        { x: 10, y: 110, z: -130, speed: 0.08, parts: [[-14, -2, 0, 15], [0, 6, 0, 21], [14, 0, 0, 16]] },
+        { x: 140, y: 75, z: -90, speed: 0.15, parts: [[-10, 0, 0, 12], [0, 4, 0, 16], [10, -2, 0, 11]] }
+      ];
+
+      cloudDefs.forEach(cd => {
+        const cluster = { x: cd.x, speed: cd.speed, spheres: [] };
+        cd.parts.forEach(p => {
+          const cloudSph = new X.sphere();
+          cloudSph.radius = p[3];
+          cloudSph.color = [1.0, 1.0, 1.0];
+          cloudSph.opacity = 0.95;
+          cloudSph.offset = [p[0], p[1], p[2]];
+          cloudSph.baseY = cd.y;
+          cloudSph.baseZ = cd.z;
+          cloudSph.center = [cd.x + p[0], cd.y + p[1], cd.z + p[2]];
+          renderer.add(cloudSph);
+          cluster.spheres.push(cloudSph);
+        });
+        cloudClusters.push(cluster);
+      });
+
+      // C. 3D Rolling Green Meadow Hills in the Background
+      const hillConfigs = [
+        { center: [-150, -45, -110], radius: 95, color: [0.44, 0.76, 0.28] },
+        { center: [130, -50, -120], radius: 110, color: [0.38, 0.72, 0.24] },
+        { center: [-10, -60, -140], radius: 130, color: [0.48, 0.80, 0.32] }
+      ];
+      hillConfigs.forEach(hc => {
+        const hill = new X.sphere();
+        hill.center = hc.center;
+        hill.radius = hc.radius;
+        hill.color = hc.color;
+        hill.opacity = 1.0;
+        renderer.add(hill);
+        rollingHills.push(hill);
+      });
+
+      // D. Main 3D Grassy Meadow Floor (Vast lush green platform)
+      meadowPlatform = new X.cube();
+      meadowPlatform.center = [0, JelloConfig.groundY - 6, 0];
+      meadowPlatform.lengthX = 340;
+      meadowPlatform.lengthY = 12;
+      meadowPlatform.lengthZ = 300;
+      meadowPlatform.color = [0.32, 0.70, 0.20]; // Meadow grass green
+      meadowPlatform.opacity = 1.0;
+      renderer.add(meadowPlatform);
+
+      // E. 3D Swaying Grass Tufts Across the Meadow
+      for (let g = 0; g < 32; g++) {
+        const tuft = new X.cube();
+        const gx = (Math.random() - 0.5) * 260;
+        const gz = (Math.random() - 0.5) * 220;
+        if (Math.abs(gx) < 35 && Math.abs(gz) < 35) continue; // Keep space for cube
+
+        tuft.baseX = gx;
+        tuft.baseY = JelloConfig.groundY + 4;
+        tuft.baseZ = gz;
+        tuft.center = [gx, tuft.baseY, gz];
+        tuft.lengthX = 3.5;
+        tuft.lengthY = 9 + Math.random() * 8;
+        tuft.lengthZ = 3.5;
+        tuft.color = [0.38 + Math.random() * 0.1, 0.82 + Math.random() * 0.1, 0.24];
+        tuft.opacity = 0.95;
+        renderer.add(tuft);
+        grassTufts.push(tuft);
+      }
+
+      // F. 3D Colorful Meadow Wildflowers (Daisies, Poppies, Buttercups)
+      const flowerColors = [
+        [1.0, 0.88, 0.15], // Golden Buttercup
+        [1.0, 0.25, 0.35], // Red Poppy
+        [0.25, 0.75, 1.00], // Sky Bluebell
+        [1.0, 1.0, 1.0],   // White Daisy
+        [0.95, 0.45, 0.85]  // Pink Blossom
+      ];
+      for (let f = 0; f < 20; f++) {
+        const fl = new X.cube();
+        const fx = (Math.random() - 0.5) * 240;
+        const fz = (Math.random() - 0.5) * 200;
+        if (Math.abs(fx) < 35 && Math.abs(fz) < 35) continue;
+
+        fl.baseX = fx;
+        fl.baseY = JelloConfig.groundY + 8;
+        fl.baseZ = fz;
+        fl.center = [fx, fl.baseY, fz];
+        fl.lengthX = fl.lengthY = fl.lengthZ = 5.5;
+        fl.color = flowerColors[f % flowerColors.length];
+        fl.opacity = 1.0;
+        renderer.add(fl);
+        meadowFlowers.push(fl);
+      }
+
+      // -------------------------------------------------------------
+      // 3. CREATE TRANSLUCENT 3D JELLO CUBE & INNER REFRACTION CORE
+      // -------------------------------------------------------------
+      const flav = Flavors[JelloConfig.flavor];
+
+      // Outer Translucent Gelatin Cube
+      jelloCube = new X.cube();
+      jelloCube.center = [0, JelloConfig.groundY + (JelloConfig.baseSize * 0.5), 0];
+      jelloCube.lengthX = jelloCube.lengthY = jelloCube.lengthZ = JelloConfig.baseSize;
+      jelloCube.color = flav.rgb;
+      jelloCube.opacity = JelloConfig.transparency; // Authentic gelatin translucency
+      renderer.add(jelloCube);
+
+      // Inner Caustic Glowing Core (Adds realistic gelatin internal depth)
+      innerCore = new X.cube();
+      innerCore.center = [0, JelloConfig.groundY + (JelloConfig.baseSize * 0.5), 0];
+      innerCore.lengthX = innerCore.lengthY = innerCore.lengthZ = JelloConfig.baseSize * 0.68;
+      innerCore.color = flav.core;
+      innerCore.opacity = JelloConfig.transparency * 0.65;
+      renderer.add(innerCore);
+
+      // -------------------------------------------------------------
+      // 4. CREATE 3D GEOMETRIC FACE PARTS IN XTK
+      // -------------------------------------------------------------
+      // 3D Eyes (Glossy Dark Midnight Spheres)
+      Face3D.eyeL = new X.sphere();
+      Face3D.eyeL.radius = 3.6;
+      Face3D.eyeL.color = [0.08, 0.08, 0.16];
+      renderer.add(Face3D.eyeL);
+
+      Face3D.eyeR = new X.sphere();
+      Face3D.eyeR.radius = 3.6;
+      Face3D.eyeR.color = [0.08, 0.08, 0.16];
+      renderer.add(Face3D.eyeR);
+
+      // 3D Pupil Highlights / Sparkles (White Spheres)
+      Face3D.pupilL = new X.sphere();
+      Face3D.pupilL.radius = 1.35;
+      Face3D.pupilL.color = [1.0, 1.0, 1.0];
+      renderer.add(Face3D.pupilL);
+
+      Face3D.pupilR = new X.sphere();
+      Face3D.pupilR.radius = 1.35;
+      Face3D.pupilR.color = [1.0, 1.0, 1.0];
+      renderer.add(Face3D.pupilR);
+
+      // 3D Rosy Cheeks Blush (Spheres)
+      Face3D.blushL = new X.sphere();
+      Face3D.blushL.radius = 3.4;
+      Face3D.blushL.color = [1.0, 0.35, 0.55];
+      Face3D.blushL.opacity = 0.88;
+      renderer.add(Face3D.blushL);
+
+      Face3D.blushR = new X.sphere();
+      Face3D.blushR.radius = 3.4;
+      Face3D.blushR.color = [1.0, 0.35, 0.55];
+      Face3D.blushR.opacity = 0.88;
+      renderer.add(Face3D.blushR);
+
+      // 3D Eyebrows (Cubes)
+      Face3D.eyebrowL = new X.cube();
+      Face3D.eyebrowL.color = [0.12, 0.12, 0.2];
+      renderer.add(Face3D.eyebrowL);
+
+      Face3D.eyebrowR = new X.cube();
+      Face3D.eyebrowR.color = [0.12, 0.12, 0.2];
+      renderer.add(Face3D.eyebrowR);
+
+      // 3D Mouth Cavity (Dark Berry Smile Cube)
+      Face3D.mouthCavity = new X.cube();
+      Face3D.mouthCavity.color = [0.32, 0.05, 0.12];
+      renderer.add(Face3D.mouthCavity);
+
+      // 3D Mouth Tongue (Coral Pink Sphere)
+      Face3D.mouthTongue = new X.sphere();
+      Face3D.mouthTongue.radius = 2.4;
+      Face3D.mouthTongue.color = [1.0, 0.45, 0.55];
+      renderer.add(Face3D.mouthTongue);
+
+      // 3D Smile Lip Corners
+      Face3D.mouthCornerL = new X.cube();
+      Face3D.mouthCornerL.color = [0.2, 0.04, 0.08];
+      renderer.add(Face3D.mouthCornerL);
+
+      Face3D.mouthCornerR = new X.cube();
+      Face3D.mouthCornerR.color = [0.2, 0.04, 0.08];
+      renderer.add(Face3D.mouthCornerR);
+
+      // -------------------------------------------------------------
+      // 5. CREATE 3D BURST SPARKLES (CUBES)
+      // -------------------------------------------------------------
+      for (let b = 0; b < 14; b++) {
+        const bc = new X.cube();
+        bc.lengthX = bc.lengthY = bc.lengthZ = 4.5;
+        bc.color = (b % 2 === 0) ? [1.0, 0.9, 0.25] : [1.0, 1.0, 1.0];
+        bc.center = [0, -999, 0];
+        renderer.add(bc);
+        burstCubes3D.push({ mesh: bc, active: false, startTime: 0, vel: [0, 0, 0], origin: [0, 0, 0] });
+      }
+
+      // -------------------------------------------------------------
+      // 6. CAMERA POSITION (Showcases 3D Meadow & Translucent Cube Face)
+      // -------------------------------------------------------------
+      renderer.camera.position = [0, 15, 200];
+      renderer.camera.focus = [0, 5, 0];
+      renderer.camera.up = [0, 1, 0];
+
+      // Initial Render Call
+      renderer.render();
+
+      // Main Animation Frame Hook
+      let lastFrameTime = performance.now();
+      renderer.onRender = function() {
+        const now = performance.now();
+        const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+        lastFrameTime = now;
+
+        // Update Jello Physics, Translucency, 3D Face & 3D Meadow Environment
+        updateJelloPhysics(now);
+
+        // Update 2D Sparkles Overlay
+        renderSparkles(dt);
+      };
+
+      // Responsive window resize
+      window.addEventListener('resize', () => {
+        if (renderer && renderer.resize) {
+          renderer.resize();
+        }
+      });
+    };
+
+    // Flavor Change Handler
+    function setFlavor(flavorKey) {
+      if (!Flavors[flavorKey]) return;
+      JelloConfig.flavor = flavorKey;
+      const f = Flavors[flavorKey];
+
+      if (jelloCube) {
+        jelloCube.color = f.rgb;
+      }
+      if (innerCore) {
+        innerCore.color = f.core;
+      }
+
+      document.querySelectorAll('.flavor-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.flavor === flavorKey);
+      });
+
+      showToast(`🍓 Flavor: ${f.name}`);
+      triggerPoke();
+    }
+
+    // ============================================================
+    // DOM EVENT LISTENERS & USER INTERACTION
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Jump Button
+      document.getElementById('btnJump').addEventListener('click', triggerJump);
+
+      // Poke Button
+      document.getElementById('btnPoke').addEventListener('click', triggerPoke);
+
+      // Flavor Buttons
+      document.querySelectorAll('.flavor-btn').forEach(btn => {
+        btn.addEventListener('click', () => setFlavor(btn.dataset.flavor));
+      });
+
+      // Wobble Slider
+      const rngWobble = document.getElementById('rngWobble');
+      rngWobble.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        JelloConfig.wobbleFreq = 18.0 * (val / 1.2);
+        JelloConfig.wobbleDamping = 4.2 / val;
+        document.getElementById('lblWobble').innerText = val.toFixed(1) + 'x';
+      });
+
+      // Squash Slider
+      const rngSquash = document.getElementById('rngSquash');
+      rngSquash.addEventListener('input', (e) => {
+        JelloConfig.squashFactor = parseFloat(e.target.value);
+        document.getElementById('lblSquash').innerText = JelloConfig.squashFactor.toFixed(1) + 'x';
+      });
+
+      // Jump Height Slider
+      const rngJumpHeight = document.getElementById('rngJumpHeight');
+      rngJumpHeight.addEventListener('input', (e) => {
+        JelloConfig.jumpPeakHeight = parseFloat(e.target.value);
+        document.getElementById('lblJumpHeight').innerText = JelloConfig.jumpPeakHeight + ' px';
+      });
+
+      // Opacity / Transparency Slider
+      const rngOpacity = document.getElementById('rngOpacity');
+      rngOpacity.addEventListener('input', (e) => {
+        JelloConfig.transparency = parseFloat(e.target.value);
+        document.getElementById('lblOpacity').innerText = Math.round(JelloConfig.transparency * 100) + '%';
+      });
+
+      // Bird Tweet Toggle
+      const btnBirds = document.getElementById('btnBirds');
+      btnBirds.addEventListener('click', () => {
+        JelloConfig.birdTweetsEnabled = !JelloConfig.birdTweetsEnabled;
+        btnBirds.classList.toggle('active', JelloConfig.birdTweetsEnabled);
+        btnBirds.innerText = JelloConfig.birdTweetsEnabled ? '🐦 Birds: ON' : '🐦 Birds: OFF';
+        if (JelloConfig.birdTweetsEnabled) {
+          MeadowAudio.playBirdChirp('joyful');
+          showToast('🐦 Bird Songs Enabled');
+        } else {
+          showToast('🔇 Bird Songs Muted');
+        }
+      });
+
+      // Auto-Jump Toggle
+      const btnAutoJump = document.getElementById('btnAutoJump');
+      btnAutoJump.addEventListener('click', () => {
+        JelloConfig.autoJump = !JelloConfig.autoJump;
+        btnAutoJump.classList.toggle('active', JelloConfig.autoJump);
+        btnAutoJump.innerText = JelloConfig.autoJump ? '🔁 Auto-Jump: ON' : '🔁 Auto-Jump: OFF';
+        if (JelloConfig.autoJump && !Physics.isJumping) {
+          triggerJump();
+        }
+      });
+
+      // Reset View Button
+      document.getElementById('btnResetCamera').addEventListener('click', resetCameraFront);
+
+      // Collapse / Expand HUD Panel
+      const hudPanel = document.getElementById('hudPanel');
+      const btnCloseHud = document.getElementById('btnCloseHud');
+      const btnOpenHud = document.getElementById('btnOpenHud');
+
+      const toggleHud = () => {
+        const isCollapsed = hudPanel.classList.toggle('collapsed');
+        btnOpenHud.style.display = isCollapsed ? 'flex' : 'none';
+      };
+
+      btnCloseHud.addEventListener('click', toggleHud);
+      btnOpenHud.addEventListener('click', toggleHud);
+
+      // Direct Canvas / Screen Click -> Jump for Joy!
+      window.addEventListener('click', (e) => {
+        if (e.target.closest('#hudPanel') || e.target.closest('#btnOpenHud')) {
+          return;
+        }
+        triggerJump();
+      });
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          triggerJump();
+        } else if (e.key === 'p' || e.key === 'P') {
+          triggerPoke();
+        } else if (e.key === 'b' || e.key === 'B') {
+          MeadowAudio.playBirdChirp('joyful');
+        } else if (e.key === 'c' || e.key === 'C') {
+          const keys = Object.keys(Flavors);
+          const nextIdx = (keys.indexOf(JelloConfig.flavor) + 1) % keys.length;
+          setFlavor(keys[nextIdx]);
+        } else if (e.key === 'r' || e.key === 'R') {
+          resetCameraFront();
+        } else if (e.key === 'h' || e.key === 'H') {
+          toggleHud();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

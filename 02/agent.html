@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS460 - Kinetic Cube Art Universe (XTK)</title>
+  <style>
+    :root {
+      --bg-color: #05060b;
+      --card-bg: rgba(13, 17, 28, 0.75);
+      --card-border: rgba(99, 102, 241, 0.25);
+      --card-border-glow: rgba(99, 102, 241, 0.5);
+      --accent: #6366f1;
+      --accent-glow: #818cf8;
+      --cyan: #06b6d4;
+      --magenta: #ec4899;
+      --amber: #f59e0b;
+      --emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      background-color: var(--bg-color);
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+    }
+
+    /* WebGL Canvas fills screen */
+    canvas {
+      display: block;
+      width: 100vw !important;
+      height: 100vh !important;
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Background Ambient Glow */
+    .cosmic-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, rgba(30, 27, 75, 0.35) 0%, rgba(5, 6, 11, 0.95) 75%);
+      z-index: 0;
+    }
+
+    /* Floating Glassmorphic HUD */
+    .hud-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 340px;
+      max-width: calc(100vw - 40px);
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.7), 0 0 20px -2px rgba(99, 102, 241, 0.2);
+      z-index: 10;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hud-panel.collapsed {
+      transform: translateX(calc(-100% - 30px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .hud-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #a5b4fc 0%, #38bdf8 50%, #f472b6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .btn-toggle-hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 9;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s ease;
+    }
+    .btn-toggle-hud:hover {
+      border-color: var(--accent-glow);
+      background: rgba(30, 27, 75, 0.8);
+      transform: translateY(-1px);
+    }
+
+    .btn-close-hud {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      border-radius: 6px;
+      transition: color 0.2s;
+    }
+    .btn-close-hud:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Section Groups */
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 14px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Button Grids */
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .control-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      padding: 9px 10px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+    }
+    .control-btn:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent-glow);
+      transform: translateY(-1px);
+    }
+    .control-btn.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(6, 182, 212, 0.35) 100%);
+      border-color: #818cf8;
+      box-shadow: 0 0 15px -2px rgba(99, 102, 241, 0.4);
+      color: #fff;
+    }
+
+    /* Theme Pills */
+    .theme-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .theme-pill {
+      flex: 1 1 calc(33% - 6px);
+      min-width: 85px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .theme-pill:hover {
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .theme-pill.active {
+      border-color: var(--cyan);
+      color: #fff;
+      background: rgba(6, 182, 212, 0.15);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+    }
+
+    /* Sliders */
+    .slider-group {
+      margin-bottom: 12px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .slider-header span.val {
+      color: var(--cyan);
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+    .range-input {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+    .range-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent);
+      transition: transform 0.15s ease;
+    }
+    .range-input::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Action Buttons */
+    .action-btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+      border: none;
+      color: white;
+      padding: 11px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-top: 10px;
+    }
+    .action-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+    .action-btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* Live HUD Stats (Bottom Right) */
+    .hud-stats {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+    .stat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-badge .stat-num {
+      color: #38bdf8;
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    /* Keyboard legend banner (bottom left) */
+    .keyboard-legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      z-index: 8;
+      pointer-events: none;
+      opacity: 0.8;
+      transition: opacity 0.3s;
+    }
+    .key-badge {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(8px);
+    }
+    .key-badge kbd {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: bold;
+      margin-right: 4px;
+    }
+
+    /* Notification toast */
+    .toast-msg {
+      position: absolute;
+      top: 25px;
+      right: 25px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+      backdrop-filter: blur(12px);
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #fff;
+      transform: translateY(-50px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+      pointer-events: none;
+    }
+    .toast-msg.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+      .hud-panel {
+        top: 10px;
+        left: 10px;
+        width: calc(100vw - 20px);
+        padding: 16px;
+      }
+      .keyboard-legend {
+        display: none;
+      }
+      .hud-stats {
+        bottom: 10px;
+        right: 10px;
+        padding: 8px 12px;
+      }
+    }
+  </style>
+
+  <!-- Load official XTK (The X Toolkit) WebGL Framework -->
+  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+</head>
+<body>
+
+  <!-- Ambient visual background -->
+  <div class="cosmic-backdrop"></div>
+
+  <!-- Toggle HUD Button (Visible when HUD is closed) -->
+  <button id="btnOpenHud" class="btn-toggle-hud" style="display: none;" title="Show Controls (H)">
+    <span>⚙️</span> Controls
+  </button>
+
+  <!-- Main Floating HUD Panel -->
+  <div id="hudPanel" class="hud-panel">
+    <div class="hud-header">
+      <div>
+        <div class="hud-title">
+          <span>💎</span> Kinetic Cube Art
+        </div>
+        <div class="hud-subtitle">CS460 WebGL Graphics • XTK Engine</div>
+      </div>
+      <button id="btnCloseHud" class="btn-close-hud" title="Hide HUD (H)">✕</button>
+    </div>
+
+    <!-- Pattern Modes -->
+    <div class="section-title">Visual Choreography (M)</div>
+    <div class="button-grid">
+      <button class="control-btn active" data-mode="swarm">🌌 Cosmic Swarm</button>
+      <button class="control-btn" data-mode="wave">🌊 Cyber Matrix</button>
+      <button class="control-btn" data-mode="vortex">🌪️ Quantum Helix</button>
+      <button class="control-btn" data-mode="chaos">⚡ Chaos Warp</button>
+    </div>
+
+    <!-- Color Palettes -->
+    <div class="section-title">Color Themes (C)</div>
+    <div class="theme-grid">
+      <div class="theme-pill active" data-theme="rainbow">🌈 Prismatic</div>
+      <div class="theme-pill" data-theme="cyberpunk">💜 Cyberpunk</div>
+      <div class="theme-pill" data-theme="aurora">🌌 Aurora</div>
+      <div class="theme-pill" data-theme="solar">🔥 Solar</div>
+      <div class="theme-pill" data-theme="emerald">💚 Matrix</div>
+      <div class="theme-pill" data-theme="monolith">🤍 Monolith</div>
+    </div>
+
+    <!-- Dynamics Sliders -->
+    <div class="section-title">Dynamics & Motion</div>
+    <div class="slider-group">
+      <div class="slider-header">
+        <span>Animation Speed</span>
+        <span id="lblSpeed" class="val">1.0x</span>
+      </div>
+      <input type="range" id="rngSpeed" class="range-input" min="0.1" max="2.5" step="0.05" value="1.0">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span>Wave Amplitude</span>
+        <span id="lblAmp" class="val">1.0x</span>
+      </div>
+      <input type="range" id="rngAmp" class="range-input" min="0.2" max="2.5" step="0.1" value="1.0">
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span>Cube Spin Rate</span>
+        <span id="lblSpin" class="val">1.0x</span>
+      </div>
+      <input type="range" id="rngSpin" class="range-input" min="0.0" max="3.0" step="0.1" value="1.0">
+    </div>
+
+    <!-- Interactive Toggles -->
+    <div class="button-grid" style="margin-top: 10px;">
+      <button id="btnOrbit" class="control-btn active">🎥 Auto-Orbit: ON</button>
+      <button id="btnAudio" class="control-btn">🔊 Ambient: OFF</button>
+    </div>
+
+    <!-- Action Buttons -->
+    <button id="btnShockwave" class="action-btn-primary">
+      <span>💥</span> Trigger Shockwave Impulse
+    </button>
+  </div>
+
+  <!-- HUD Stats Display -->
+  <div class="hud-stats">
+    <div class="stat-badge">
+      <span>Cubes:</span>
+      <span id="statCubeCount" class="stat-num">0</span>
+    </div>
+    <div class="stat-badge">
+      <span>FPS:</span>
+      <span id="statFps" class="stat-num">60</span>
+    </div>
+    <div class="stat-badge">
+      <span>Mode:</span>
+      <span id="statMode" class="stat-num" style="color: #ec4899;">Cosmic Swarm</span>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Bar -->
+  <div class="keyboard-legend">
+    <div class="key-badge"><kbd>Space</kbd> Play/Pause</div>
+    <div class="key-badge"><kbd>C</kbd> Color Theme</div>
+    <div class="key-badge"><kbd>M</kbd> Mode</div>
+    <div class="key-badge"><kbd>O</kbd> Orbit</div>
+    <div class="key-badge"><kbd>R</kbd> Reset View</div>
+    <div class="key-badge"><kbd>H</kbd> Toggle HUD</div>
+    <div class="key-badge"><kbd>Click</kbd> Shockwave</div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast-msg">Shockwave Fired!</div>
+
+  <!-- Core Visualization Engine -->
+  <script type="text/javascript">
+    // Global State & Configuration
+    const Config = {
+      mode: 'swarm',        // 'swarm', 'wave', 'vortex', 'chaos'
+      theme: 'rainbow',     // 'rainbow', 'cyberpunk', 'aurora', 'solar', 'emerald', 'monolith'
+      speed: 1.0,
+      amplitude: 1.0,
+      spinRate: 1.0,
+      autoOrbit: true,
+      audioEnabled: false,
+      isPaused: false
+    };
+
+    // Performance Stats
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+    let currentFps = 60;
+    let globalClock = 0;
+
+    // Shockwave State
+    const Shockwave = {
+      active: false,
+      startTime: 0,
+      radius: 0,
+      speed: 220.0,
+      maxRadius: 360.0
+    };
+
+    // Cube Collections
+    let coreCubes = [];       // Concentric center core
+    let gridCubes = [];       // Undulating matrix field
+    let orbitalCubes = [];    // Flying / orbiting swarm
+    let shootingCubes = [];   // High-speed streak meteors
+    let allCubes = [];        // Unified list for rapid batch updates
+
+    // XTK Renderer & Camera
+    let renderer = null;
+
+    // Web Audio Synthesizer (Ambient Drone & Shockwave Ping)
+    const AudioEngine = {
+      ctx: null,
+      masterGain: null,
+      oscillators: [],
+      filter: null,
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+
+        // Master Volume
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+
+        // Lowpass Filter for smooth cosmic warmth
+        this.filter = this.ctx.createBiquadFilter();
+        this.filter.type = 'lowpass';
+        this.filter.frequency.setValueAtTime(450, this.ctx.currentTime);
+        this.filter.Q.setValueAtTime(3.5, this.ctx.currentTime);
+
+        this.filter.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
+
+        // Harmonic Minor 9th chord frequencies (A2, E3, C4, G4)
+        const freqs = [110.0, 164.81, 261.63, 392.0];
+        freqs.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          osc.type = (idx % 2 === 0) ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+          // Subtle harmonic detuning for rich chorusing
+          osc.detune.setValueAtTime((idx - 1.5) * 4.5, this.ctx.currentTime);
+
+          const oscGain = this.ctx.createGain();
+          oscGain.gain.setValueAtTime(0.18 / freqs.length, this.ctx.currentTime);
+
+          osc.connect(oscGain);
+          oscGain.connect(this.filter);
+          osc.start();
+          this.oscillators.push(osc);
+        });
+      },
+
+      enable() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+        if (this.masterGain) {
+          this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+          this.masterGain.gain.linearRampToValueAtTime(0.25, this.ctx.currentTime + 1.2);
+        }
+      },
+
+      disable() {
+        if (this.ctx && this.masterGain) {
+          this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+          this.masterGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.8);
+        }
+      },
+
+      playShockwavePing() {
+        if (!Config.audioEnabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const pingOsc = this.ctx.createOscillator();
+        const pingGain = this.ctx.createGain();
+
+        pingOsc.type = 'sine';
+        pingOsc.frequency.setValueAtTime(587.33, now); // D5
+        pingOsc.frequency.exponentialRampToValueAtTime(880.0, now + 0.15); // A5
+        pingOsc.frequency.exponentialRampToValueAtTime(220.0, now + 1.2);
+
+        pingGain.gain.setValueAtTime(0.35, now);
+        pingGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+        pingOsc.connect(pingGain);
+        pingGain.connect(this.masterGain);
+
+        pingOsc.start(now);
+        pingOsc.stop(now + 1.25);
+      }
+    };
+
+    // Color Palette Utility Functions
+    function hslToRgb(h, s, l) {
+      let r, g, b;
+      if (s === 0) {
+        r = g = b = l; // achromatic
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+      return [r, g, b];
+    }
+
+    function getPaletteColor(ratio, brightness = 1.0) {
+      const norm = ((ratio % 1.0) + 1.0) % 1.0;
+      let rgb = [1, 1, 1];
+
+      switch (Config.theme) {
+        case 'rainbow':
+          // Smooth 360-degree rainbow spectrum
+          rgb = hslToRgb(norm, 0.9, 0.55);
+          break;
+
+        case 'cyberpunk':
+          // Neon Magenta -> Electric Cyan -> Bright Violet -> Deep Purple
+          if (norm < 0.33) {
+            const t = norm / 0.33;
+            rgb = [0.92, 0.28 * (1 - t) + 0.71 * t, 0.60 * (1 - t) + 0.83 * t]; // Pink -> Cyan
+          } else if (norm < 0.66) {
+            const t = (norm - 0.33) / 0.33;
+            rgb = [0.02 * (1 - t) + 0.54 * t, 0.71 * (1 - t) + 0.17 * t, 0.83 * (1 - t) + 0.89 * t]; // Cyan -> Violet
+          } else {
+            const t = (norm - 0.66) / 0.34;
+            rgb = [0.54 * (1 - t) + 0.92 * t, 0.17 * (1 - t) + 0.28 * t, 0.89 * (1 - t) + 0.60 * t]; // Violet -> Pink
+          }
+          break;
+
+        case 'aurora':
+          // Polar emerald green -> ice cyan -> indigo blue -> deep violet
+          if (norm < 0.5) {
+            const t = norm / 0.5;
+            rgb = [0.06 * (1 - t) + 0.05 * t, 0.78 * (1 - t) + 0.85 * t, 0.55 * (1 - t) + 0.95 * t];
+          } else {
+            const t = (norm - 0.5) / 0.5;
+            rgb = [0.05 * (1 - t) + 0.55 * t, 0.85 * (1 - t) + 0.25 * t, 0.95 * (1 - t) + 0.85 * t];
+          }
+          break;
+
+        case 'solar':
+          // Deep crimson -> molten orange -> incandescent golden yellow
+          if (norm < 0.5) {
+            const t = norm / 0.5;
+            rgb = [0.85 * (1 - t) + 0.98 * t, 0.15 * (1 - t) + 0.55 * t, 0.05];
+          } else {
+            const t = (norm - 0.5) / 0.5;
+            rgb = [0.98 * (1 - t) + 1.0 * t, 0.55 * (1 - t) + 0.90 * t, 0.05 * (1 - t) + 0.35 * t];
+          }
+          break;
+
+        case 'emerald':
+          // Cyber matrix phosphor green tones
+          {
+            const g = 0.5 + 0.5 * Math.sin(norm * Math.PI * 2);
+            rgb = [0.05, 0.4 + 0.6 * g, 0.15 + 0.25 * g];
+          }
+          break;
+
+        case 'monolith':
+        default:
+          // Minimalist high-contrast obsidian & iridescent silver-white
+          {
+            const v = 0.4 + 0.6 * Math.sin(norm * Math.PI * 2);
+            rgb = [v, v * 0.95, v * 1.05];
+          }
+          break;
+      }
+
+      // Apply brightness scale
+      return [
+        Math.min(1.0, Math.max(0.0, rgb[0] * brightness)),
+        Math.min(1.0, Math.max(0.0, rgb[1] * brightness)),
+        Math.min(1.0, Math.max(0.0, rgb[2] * brightness))
+      ];
+    }
+
+    // Initialize 3D Art Universe
+    window.onload = function() {
+      // Create and initialize XTK 3D Renderer
+      renderer = new X.renderer3D();
+      renderer.init();
+
+      // Configure background color to deep cosmic obsidian
+      renderer.color = [0.02, 0.03, 0.05];
+
+      // 1. Build Central Core (3 nested concentric cubes with varying sizes)
+      const coreSizes = [32, 22, 12];
+      coreSizes.forEach((sz, idx) => {
+        const cube = new X.cube();
+        cube.center = [0, 0, 0];
+        cube.lengthX = cube.lengthY = cube.lengthZ = sz;
+        cube.color = getPaletteColor(idx * 0.33);
+        cube.opacity = (idx === 0) ? 0.45 : (idx === 1 ? 0.75 : 1.0);
+
+        cube.coreIndex = idx;
+        cube.spinSpeed = (idx === 0) ? 1.0 : (idx === 1 ? -1.6 : 2.4);
+
+        renderer.add(cube);
+        coreCubes.push(cube);
+        allCubes.push(cube);
+      });
+
+      // 2. Build Undulating Cyber Grid Matrix (9x9 grid = 81 cubes)
+      const gridRows = 9;
+      const gridCols = 9;
+      const gridSpacing = 28;
+      const xOffset = ((gridCols - 1) * gridSpacing) / 2;
+      const yOffset = ((gridRows - 1) * gridSpacing) / 2;
+
+      for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+          const cube = new X.cube();
+          const baseX = c * gridSpacing - xOffset;
+          const baseY = r * gridSpacing - yOffset;
+          const baseZ = -60; // Placed underneath the central core
+
+          cube.center = [baseX, baseY, baseZ];
+          cube.lengthX = cube.lengthY = 9;
+          cube.lengthZ = 9;
+
+          // Spatial metadata for procedural waves
+          cube.baseX = baseX;
+          cube.baseY = baseY;
+          cube.baseZ = baseZ;
+          cube.gridR = r;
+          cube.gridC = c;
+          cube.distFromCenter = Math.sqrt(baseX * baseX + baseY * baseY);
+
+          cube.color = getPaletteColor(cube.distFromCenter * 0.008);
+          cube.opacity = 0.85;
+
+          renderer.add(cube);
+          gridCubes.push(cube);
+          allCubes.push(cube);
+        }
+      }
+
+      // 3. Build Orbital Swarm of Flying Cubes (54 cubes)
+      const swarmCount = 54;
+      for (let i = 0; i < swarmCount; i++) {
+        const cube = new X.cube();
+        const sz = 5 + (i % 4) * 2.5;
+        cube.lengthX = cube.lengthY = cube.lengthZ = sz;
+
+        // Parametric orbital characteristics
+        cube.swarmIndex = i;
+        cube.radius = 65 + (i * 3.8);
+        cube.speedMultiplier = 0.4 + (i % 5) * 0.18;
+        cube.tilt = (i * 0.45) % Math.PI;
+        cube.phase = (i / swarmCount) * Math.PI * 2;
+        cube.elevationPhase = (i * 1.3) % (Math.PI * 2);
+
+        // Self rotation rates
+        cube.spinX = (0.5 + (i % 3) * 0.6) * ((i % 2 === 0) ? 1 : -1);
+        cube.spinY = (0.6 + (i % 4) * 0.4) * ((i % 3 === 0) ? 1 : -1);
+        cube.spinZ = (0.4 + (i % 2) * 0.8);
+
+        cube.center = [0, 0, 0];
+        cube.color = getPaletteColor(i / swarmCount);
+        cube.opacity = 0.9;
+
+        renderer.add(cube);
+        orbitalCubes.push(cube);
+        allCubes.push(cube);
+      }
+
+      // 4. Build High-Speed Meteor Streak Cubes (12 hyper cubes)
+      const meteorCount = 12;
+      for (let m = 0; m < meteorCount; m++) {
+        const cube = new X.cube();
+        cube.lengthX = cube.lengthY = cube.lengthZ = 4;
+
+        // Randomized spatial velocity
+        cube.posX = (Math.random() - 0.5) * 300;
+        cube.posY = (Math.random() - 0.5) * 300;
+        cube.posZ = (Math.random() - 0.5) * 200;
+
+        const theta = Math.random() * Math.PI * 2;
+        const phi = (Math.random() - 0.5) * Math.PI;
+        const spd = 2.5 + Math.random() * 3.0;
+
+        cube.velX = Math.cos(theta) * Math.cos(phi) * spd;
+        cube.velY = Math.sin(theta) * Math.cos(phi) * spd;
+        cube.velZ = Math.sin(phi) * spd;
+
+        cube.center = [cube.posX, cube.posY, cube.posZ];
+        cube.color = [1, 1, 1]; // Bright glowing white-hot core
+        cube.opacity = 0.95;
+
+        renderer.add(cube);
+        shootingCubes.push(cube);
+        allCubes.push(cube);
+      }
+
+      // Update total cube count in UI
+      document.getElementById('statCubeCount').innerText = allCubes.length;
+
+      // Start initial render
+      renderer.render();
+
+      // Camera initial distance adjustment
+      renderer.camera.position = [0, -220, 240];
+
+      // Main Animation & Transform Loop (Invoked every frame)
+      renderer.onRender = function() {
+        const now = performance.now();
+        frameCount++;
+        if (now - lastFpsTime >= 500) {
+          currentFps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+          document.getElementById('statFps').innerText = currentFps;
+          frameCount = 0;
+          lastFpsTime = now;
+        }
+
+        if (Config.isPaused) return;
+
+        const dt = 0.016 * Config.speed;
+        globalClock += dt;
+
+        // Auto-orbit camera around the sculpture
+        if (Config.autoOrbit) {
+          renderer.camera.rotate([0.35 * Config.speed, 0.08 * Math.sin(globalClock * 0.5)]);
+        }
+
+        // Update Shockwave radius
+        let currentShockRadius = 0;
+        let shockActive = false;
+        if (Shockwave.active) {
+          const elapsed = (now - Shockwave.startTime) / 1000;
+          currentShockRadius = elapsed * Shockwave.speed;
+          if (currentShockRadius > Shockwave.maxRadius) {
+            Shockwave.active = false;
+          } else {
+            shockActive = true;
+          }
+        }
+
+        // --- 1. Animate Core Cubes ---
+        coreCubes.forEach((cube) => {
+          const spin = cube.spinSpeed * Config.spinRate;
+          cube.transform.rotateX(spin * 1.2);
+          cube.transform.rotateY(spin * 1.6);
+          cube.transform.rotateZ(spin * 0.8);
+
+          // Pulsating glow and scale modulation
+          const pulse = 0.8 + 0.25 * Math.sin(globalClock * 3.5 + cube.coreIndex);
+          const colorRatio = (globalClock * 0.15 + cube.coreIndex * 0.33) % 1.0;
+          cube.color = getPaletteColor(colorRatio, pulse);
+        });
+
+        // --- 2. Animate Cyber Grid Matrix ---
+        gridCubes.forEach((cube) => {
+          const d = cube.distFromCenter;
+
+          // Wave function depending on visual mode
+          let waveOffset = 0;
+          let tiltX = 0;
+          let tiltY = 0;
+
+          if (Config.mode === 'wave') {
+            // Expansive rippling ocean wave
+            waveOffset = Math.sin(d * 0.09 - globalClock * 3.0) * 26.0 * Config.amplitude
+                       + Math.cos(cube.baseX * 0.07 + globalClock * 2.0) * 12.0 * Config.amplitude;
+            tiltX = Math.cos(d * 0.09 - globalClock * 3.0) * 1.8 * Config.spinRate;
+            tiltY = Math.sin(cube.baseX * 0.07 + globalClock * 2.0) * 1.8 * Config.spinRate;
+          } else if (Config.mode === 'vortex') {
+            // Swirling funnel depression
+            const angle = Math.atan2(cube.baseY, cube.baseX);
+            waveOffset = Math.sin(angle * 3.0 + d * 0.08 - globalClock * 4.0) * 20.0 * Config.amplitude;
+            tiltX = 0.8 * Config.spinRate;
+            tiltY = 0.8 * Config.spinRate;
+          } else if (Config.mode === 'chaos') {
+            // Chaotic digital turbulence
+            waveOffset = (Math.sin(cube.baseX * 0.15 + globalClock * 4.0)
+                        * Math.cos(cube.baseY * 0.15 + globalClock * 4.0)) * 32.0 * Config.amplitude;
+            tiltX = (Math.random() - 0.5) * 3.0 * Config.spinRate;
+            tiltY = (Math.random() - 0.5) * 3.0 * Config.spinRate;
+          } else {
+            // Cosmic Swarm baseline gentle harmonic ripple
+            waveOffset = Math.sin(d * 0.07 - globalClock * 1.8) * 14.0 * Config.amplitude;
+            tiltX = 0.5 * Config.spinRate;
+            tiltY = 0.5 * Config.spinRate;
+          }
+
+          // Apply Shockwave impulse bump
+          let shockPulse = 0;
+          if (shockActive) {
+            const distDiff = Math.abs(d - currentShockRadius);
+            if (distDiff < 45) {
+              const strength = (1 - distDiff / 45) * (1 - currentShockRadius / Shockwave.maxRadius);
+              shockPulse = Math.sin((1 - distDiff / 45) * Math.PI) * 45.0 * strength;
+            }
+          }
+
+          // Update position via transform matrix (index 14 = Z axis)
+          cube.transform.matrix[14] = cube.baseZ + waveOffset + shockPulse;
+          cube.transform.modified();
+
+          // Subtle tilting
+          if (Config.spinRate > 0.05) {
+            cube.transform.rotateX(tiltX);
+            cube.transform.rotateY(tiltY);
+          }
+
+          // Dynamic Color wave traveling across the grid
+          const colorRatio = (d * 0.005 + globalClock * 0.15) % 1.0;
+          const flash = shockPulse > 1.0 ? 1.8 : 1.0;
+          cube.color = getPaletteColor(colorRatio, flash);
+        });
+
+        // --- 3. Animate Orbital Swarm / Flying Cubes ---
+        orbitalCubes.forEach((cube) => {
+          const idx = cube.swarmIndex;
+          let targetX = 0;
+          let targetY = 0;
+          let targetZ = 0;
+
+          if (Config.mode === 'vortex') {
+            // Quantum Double Helix / Funnel Tornado
+            const total = orbitalCubes.length;
+            const progress = (idx / total);
+            const height = (progress - 0.5) * 220;
+            const vortexRadius = 30 + Math.abs(height) * 0.55;
+            const helixAngle = globalClock * 2.5 * cube.speedMultiplier + progress * Math.PI * 8;
+
+            targetX = Math.cos(helixAngle) * vortexRadius;
+            targetY = Math.sin(helixAngle) * vortexRadius;
+            targetZ = height + Math.sin(globalClock * 3.0 + idx) * 10;
+          } else if (Config.mode === 'wave') {
+            // Ring array orbiting above the undulating matrix
+            const ringAngle = globalClock * 1.5 * cube.speedMultiplier + cube.phase;
+            const ringR = 85 + Math.sin(globalClock * 2.0 + idx * 0.4) * 30;
+
+            targetX = Math.cos(ringAngle) * ringR;
+            targetY = Math.sin(ringAngle) * ringR;
+            targetZ = 45 + Math.sin(ringAngle * 3.0 + globalClock * 2.5) * 35;
+          } else if (Config.mode === 'chaos') {
+            // High-speed 3D Lissajous knot trajectories
+            const t = globalClock * 1.2 * cube.speedMultiplier + cube.phase;
+            targetX = Math.sin(t * 1.5) * (90 + (idx % 4) * 22);
+            targetY = Math.cos(t * 1.1) * (90 + (idx % 3) * 26);
+            targetZ = Math.sin(t * 2.1) * 85;
+          } else {
+            // Cosmic Swarm: 3D Elliptical Keplerian Orbits
+            const orbitAngle = globalClock * cube.speedMultiplier + cube.phase;
+            const r = cube.radius;
+            const cosA = Math.cos(orbitAngle);
+            const sinA = Math.sin(orbitAngle);
+
+            targetX = cosA * r;
+            targetY = sinA * r * Math.cos(cube.tilt);
+            targetZ = sinA * r * Math.sin(cube.tilt) + Math.sin(globalClock * 2.0 + cube.elevationPhase) * 25;
+          }
+
+          // Direct matrix translation (indices 12, 13, 14 = X, Y, Z)
+          cube.transform.matrix[12] = targetX;
+          cube.transform.matrix[13] = targetY;
+          cube.transform.matrix[14] = targetZ;
+          cube.transform.modified();
+
+          // Tumbling spin on all 3 axes
+          const spin = Config.spinRate;
+          cube.transform.rotateX(cube.spinX * spin * 2.0);
+          cube.transform.rotateY(cube.spinY * spin * 2.0);
+          cube.transform.rotateZ(cube.spinZ * spin * 1.5);
+
+          // Color calculation
+          const dist = Math.sqrt(targetX * targetX + targetY * targetY + targetZ * targetZ);
+          const colorRatio = (dist * 0.004 + globalClock * 0.2 + idx * 0.02) % 1.0;
+          cube.color = getPaletteColor(colorRatio, 1.15);
+        });
+
+        // --- 4. Animate Shooting / Meteor Cubes ---
+        shootingCubes.forEach((cube) => {
+          const spd = Config.speed;
+          cube.posX += cube.velX * spd;
+          cube.posY += cube.velY * spd;
+          cube.posZ += cube.velZ * spd;
+
+          // Boundary wrap-around
+          const bound = 220;
+          if (Math.abs(cube.posX) > bound || Math.abs(cube.posY) > bound || Math.abs(cube.posZ) > bound) {
+            cube.posX = -cube.posX * 0.95;
+            cube.posY = -cube.posY * 0.95;
+            cube.posZ = -cube.posZ * 0.95;
+          }
+
+          cube.transform.matrix[12] = cube.posX;
+          cube.transform.matrix[13] = cube.posY;
+          cube.transform.matrix[14] = cube.posZ;
+          cube.transform.modified();
+
+          // Rapid tumbling
+          cube.transform.rotateX(4.5 * Config.spinRate);
+          cube.transform.rotateY(6.0 * Config.spinRate);
+
+          // Glowing bright streaks
+          cube.color = [1.0, 0.95, 0.9];
+        });
+      };
+    };
+
+    // Trigger Shockwave Impulse
+    function triggerShockwave() {
+      Shockwave.active = true;
+      Shockwave.startTime = performance.now();
+      Shockwave.radius = 0;
+
+      // Play audio ping if enabled
+      AudioEngine.playShockwavePing();
+
+      // Show toast
+      showToast('💥 Shockwave Impulse Fired!');
+    }
+
+    // Toast Notification helper
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      toast.innerText = text;
+      toast.classList.add('show');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1800);
+    }
+
+    // Set Mode function
+    function setMode(modeName) {
+      Config.mode = modeName;
+      document.querySelectorAll('.control-btn[data-mode]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === modeName);
+      });
+
+      const modeTitles = {
+        'swarm': 'Cosmic Swarm',
+        'wave': 'Cyber Matrix',
+        'vortex': 'Quantum Helix',
+        'chaos': 'Chaos Warp'
+      };
+      document.getElementById('statMode').innerText = modeTitles[modeName] || modeName;
+      showToast(`Mode: ${modeTitles[modeName]}`);
+    }
+
+    // Set Theme function
+    function setTheme(themeName) {
+      Config.theme = themeName;
+      document.querySelectorAll('.theme-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.theme === themeName);
+      });
+      showToast(`Palette: ${themeName.toUpperCase()}`);
+    }
+
+    // Reset Camera to initial beauty view
+    function resetCamera() {
+      if (!renderer) return;
+      renderer.camera.position = [0, -220, 240];
+      renderer.camera.focus = [0, 0, 0];
+      renderer.camera.up = [0, 1, 0];
+      showToast('📷 Camera Reset');
+    }
+
+    // DOM Event Listeners & Controls Binding
+    document.addEventListener('DOMContentLoaded', () => {
+      // Mode Buttons
+      document.querySelectorAll('.control-btn[data-mode]').forEach(btn => {
+        btn.addEventListener('click', () => setMode(btn.dataset.mode));
+      });
+
+      // Theme Pills
+      document.querySelectorAll('.theme-pill').forEach(pill => {
+        pill.addEventListener('click', () => setTheme(pill.dataset.theme));
+      });
+
+      // Speed Slider
+      const rngSpeed = document.getElementById('rngSpeed');
+      rngSpeed.addEventListener('input', (e) => {
+        Config.speed = parseFloat(e.target.value);
+        document.getElementById('lblSpeed').innerText = Config.speed.toFixed(2) + 'x';
+      });
+
+      // Amplitude Slider
+      const rngAmp = document.getElementById('rngAmp');
+      rngAmp.addEventListener('input', (e) => {
+        Config.amplitude = parseFloat(e.target.value);
+        document.getElementById('lblAmp').innerText = Config.amplitude.toFixed(1) + 'x';
+      });
+
+      // Spin Slider
+      const rngSpin = document.getElementById('rngSpin');
+      rngSpin.addEventListener('input', (e) => {
+        Config.spinRate = parseFloat(e.target.value);
+        document.getElementById('lblSpin').innerText = Config.spinRate.toFixed(1) + 'x';
+      });
+
+      // Auto-Orbit Toggle
+      const btnOrbit = document.getElementById('btnOrbit');
+      btnOrbit.addEventListener('click', () => {
+        Config.autoOrbit = !Config.autoOrbit;
+        btnOrbit.classList.toggle('active', Config.autoOrbit);
+        btnOrbit.innerText = Config.autoOrbit ? '🎥 Auto-Orbit: ON' : '🎥 Auto-Orbit: OFF';
+      });
+
+      // Audio Toggle
+      const btnAudio = document.getElementById('btnAudio');
+      btnAudio.addEventListener('click', () => {
+        Config.audioEnabled = !Config.audioEnabled;
+        btnAudio.classList.toggle('active', Config.audioEnabled);
+        btnAudio.innerText = Config.audioEnabled ? '🔊 Ambient: ON' : '🔊 Ambient: OFF';
+        if (Config.audioEnabled) {
+          AudioEngine.enable();
+          showToast('🎵 Ambient Synth Active');
+        } else {
+          AudioEngine.disable();
+          showToast('🔇 Ambient Synth Muted');
+        }
+      });
+
+      // Shockwave Trigger Button
+      document.getElementById('btnShockwave').addEventListener('click', triggerShockwave);
+
+      // HUD Collapse / Expand
+      const hudPanel = document.getElementById('hudPanel');
+      const btnCloseHud = document.getElementById('btnCloseHud');
+      const btnOpenHud = document.getElementById('btnOpenHud');
+
+      const toggleHud = () => {
+        const isCollapsed = hudPanel.classList.toggle('collapsed');
+        btnOpenHud.style.display = isCollapsed ? 'flex' : 'none';
+      };
+
+      btnCloseHud.addEventListener('click', toggleHud);
+      btnOpenHud.addEventListener('click', toggleHud);
+
+      // Canvas Click -> Shockwave
+      window.addEventListener('click', (e) => {
+        // Only trigger if click was directly on background/canvas, not on HUD elements
+        if (e.target.closest('#hudPanel') || e.target.closest('#btnOpenHud') || e.target.closest('.hud-stats')) {
+          return;
+        }
+        triggerShockwave();
+      });
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        // Prevent default on Space to avoid scrolling
+        if (e.code === 'Space') {
+          e.preventDefault();
+          Config.isPaused = !Config.isPaused;
+          showToast(Config.isPaused ? '⏸️ Paused' : '▶️ Resumed');
+        } else if (e.key === 'c' || e.key === 'C') {
+          const themes = ['rainbow', 'cyberpunk', 'aurora', 'solar', 'emerald', 'monolith'];
+          const nextIdx = (themes.indexOf(Config.theme) + 1) % themes.length;
+          setTheme(themes[nextIdx]);
+        } else if (e.key === 'm' || e.key === 'M') {
+          const modes = ['swarm', 'wave', 'vortex', 'chaos'];
+          const nextIdx = (modes.indexOf(Config.mode) + 1) % modes.length;
+          setMode(modes[nextIdx]);
+        } else if (e.key === 'o' || e.key === 'O') {
+          btnOrbit.click();
+        } else if (e.key === 'r' || e.key === 'R') {
+          resetCamera();
+        } else if (e.key === 'h' || e.key === 'H') {
+          toggleHud();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
